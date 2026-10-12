@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>MetroSaathi</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    html, body, #map { height: 100%; margin: 0; }
+    #status { position: absolute; z-index: 1000; top: 10px; right: 10px;
+              background: white; padding: 6px 10px; border-radius: 6px; font-family: sans-serif; }
+  </style>
+</head>
+<body>
+  <div id="status">connecting...</div>
+  <div id="map"></div>
+  <script>
+    const map = L.map("map").setView([22.56, 88.36], 12);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+      { attribution: "&copy; OpenStreetMap contributors" }).addTo(map);
+
+    // stations + line
+    fetch("/stations").then(r => r.json()).then(list => {
+      L.polyline(list.map(s => [s.lat, s.lon]), { color: "blue", weight: 3 }).addTo(map);
+      list.forEach(s => L.circleMarker([s.lat, s.lon], { radius: 5, color: "navy" })
+        .bindTooltip(s.name).addTo(map));
+      map.fitBounds(list.map(s => [s.lat, s.lon]));
+    });
+
+    // live trains
+    const markers = {};
+    const statusEl = document.getElementById("status");
+    const ws = new WebSocket(`ws://${location.host}/live`);
+    ws.onopen = () => statusEl.textContent = "live";
+    ws.onclose = () => statusEl.textContent = "disconnected";
+    ws.onerror = () => statusEl.textContent = "ws error";
+
+    ws.onmessage = (e) => {
+      const t = JSON.parse(e.data);
+      const pos = [t.lat, t.lon];
+      if (!markers[t.id]) {
+        markers[t.id] = L.marker(pos).addTo(map)
+          .bindTooltip(t.id, { permanent: true });
+      } else {
+        markers[t.id].setLatLng(pos);
+      }
+    };
+  </script>
+</body>
+</html>
