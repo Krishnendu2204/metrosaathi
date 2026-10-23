@@ -8,7 +8,9 @@
   <style>
     html, body, #map { height: 100%; margin: 0; }
     #status { position: absolute; z-index: 1000; top: 10px; right: 10px;
-              background: white; padding: 6px 10px; border-radius: 6px; font-family: sans-serif; }
+              background: white; padding: 6px 10px; border-radius: 6px;
+              font-family: sans-serif; max-width: 320px; }
+    #status.alert { background: #c00; color: white; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -27,20 +29,37 @@
       map.fitBounds(list.map(s => [s.lat, s.lon]));
     });
 
-    // live trains
     const markers = {};
     const statusEl = document.getElementById("status");
+    const alertLayer = L.layerGroup().addTo(map);
+
+    function showAlert(a) {
+      alertLayer.clearLayers();
+      L.circleMarker([a.train.lat, a.train.lon], { radius: 14, color: "red", fillOpacity: 0.4 })
+        .addTo(alertLayer).bindTooltip("EMERGENCY " + a.id, { permanent: true });
+      [["hospital", "red"], ["fire_station", "orange"]].forEach(([k, color]) => {
+        const r = a[k];
+        if (!r) return;
+        const line = L.polyline(r.path, { color, weight: 5 }).addTo(alertLayer)
+          .bindTooltip(`${r.name}: ${(r.dist_m / 1000).toFixed(2)} km`, { sticky: true });
+        L.marker(r.path[0]).addTo(alertLayer).bindTooltip(r.name);
+      });
+      statusEl.className = "alert";
+      statusEl.textContent = `EMERGENCY ${a.id} near ${a.station.name} (edge: ${a.edge_ms} ms)`;
+    }
+
+    // live trains + alerts
     const ws = new WebSocket(`ws://${location.host}/live`);
-    ws.onopen = () => statusEl.textContent = "live";
+    ws.onopen = () => { statusEl.className = ""; statusEl.textContent = "live"; };
     ws.onclose = () => statusEl.textContent = "disconnected";
     ws.onerror = () => statusEl.textContent = "ws error";
 
     ws.onmessage = (e) => {
       const t = JSON.parse(e.data);
+      if (t.type === "emergency") { showAlert(t); return; }
       const pos = [t.lat, t.lon];
       if (!markers[t.id]) {
-        markers[t.id] = L.marker(pos).addTo(map)
-          .bindTooltip(t.id, { permanent: true });
+        markers[t.id] = L.marker(pos).addTo(map).bindTooltip(t.id, { permanent: true });
       } else {
         markers[t.id].setLatLng(pos);
       }
