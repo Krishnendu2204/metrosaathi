@@ -48,6 +48,8 @@ async def lifespan(app):
 
 app = FastAPI(lifespan=lifespan)
 
+from backend.route_api import router as route_router
+app.include_router(route_router)
 
 @app.get("/")
 def index():
