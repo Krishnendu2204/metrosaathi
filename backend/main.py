@@ -29,19 +29,22 @@ def on_message(client, userdata, msg):
     # MQTT runs in its own thread, so hand the work to the asyncio loop
     asyncio.run_coroutine_threadsafe(broadcast(data), loop)
 
+def on_connect(client, userdata, flags, rc, props=None):
+    # runs on the first connect AND after every reconnect
+    client.subscribe([("metro/train/+/location", 0), ("metro/train/+/emergency", 1)])
+
 
 @asynccontextmanager
 async def lifespan(app):
     global loop
     loop = asyncio.get_running_loop()
     mq = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+    mq.on_connect = on_connect
     mq.on_message = on_message
-    mq.connect("localhost", 1883)
-    mq.subscribe([("metro/train/+/location", 0), ("metro/train/+/emergency", 1)])
+    mq.connect_async("localhost", 1883, keepalive=5)
     mq.loop_start()
     yield
     mq.loop_stop()
-
 
 app = FastAPI(lifespan=lifespan)
 
