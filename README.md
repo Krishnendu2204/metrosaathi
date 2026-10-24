@@ -63,7 +63,7 @@ Requires Ubuntu (or similar), Python 3.11+ and Mosquitto.
 sudo apt install -y mosquitto mosquitto-clients
 sudo systemctl enable --now mosquitto
 
-git clone git@github.com:YOUR_USERNAME/metrosaathi.git
+git clone git@github.com:Krishnendu2204/metrosaathi.git
 cd metrosaathi
 python3 -m venv .venv && source .venv/bin/activate
 pip install paho-mqtt fastapi "uvicorn[standard]" networkx osmnx geopandas scikit-learn
